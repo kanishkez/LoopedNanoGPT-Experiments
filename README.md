@@ -143,9 +143,34 @@ At 65M tokens: ~25 PPL gap. At 524M tokens: ~12 PPL gap. The looped model is a s
 
 ## Test-time loop scaling
 
-After training the FineWeb looped model with 12 loops, it is evaluated with 16, 20, 24, and 32 loops at inference time. This tests whether iterative computation generalises beyond training depth.
+The trained FineWeb looped checkpoint (12 loops) is evaluated at 16, 20, 24, and 32 inference loops — depths it was never trained at.
 
-Results: `results/fineweb/figures/loop_scaling.png`
+| Loops | Val Loss | Val PPL | vs train PPL |
+|---|---|---|---|
+| 12 (train) | 4.114 | 61.2 | — |
+| 16 | 4.365 | 78.6 | +17.4 |
+| 20 | 4.867 | 129.9 | +68.7 |
+| 24 | 5.276 | 195.6 | +134.5 |
+| 32 | 5.926 | 374.5 | +313.3 |
+
+Extra loops hurt, monotonically and substantially. The model has not learned to use recurrence beyond its training depth — it degrades rather than improving. This is a meaningful negative result.
+
+The KL divergence between successive loop logits explains why:
+
+```
+KL(loop i -> loop i+1):
+[3.95, 0.45, 0.21, 0.24, 0.14, 0.20, 0.30, 0.25, 0.13, 0.07, 0.04]
+```
+
+The first transition has KL = 3.95, meaning the initial raw embedding is radically different from the first refined state. After that, each loop makes progressively smaller updates — the final transition (loop 11 to 12) has KL = 0.04. The model has nearly converged within its trained depth.
+
+Adding more loops forces the block to keep running on a representation it was trained to stop refining at step 12. The output drifts rather than improving.
+
+This rules out test-time compute scaling (at least without any training signal encouraging it). To get beneficial extra-loop behaviour, the model would need to either: be trained with variable loop counts, or use some stopping criterion.
+
+![Test-time Loop Scaling](results/fineweb/figures/loop_scaling.png)
+
+![KL and Cosine Similarity per Loop](results/fineweb/figures/kl_cosine.png)
 
 ---
 
