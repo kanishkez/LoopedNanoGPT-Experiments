@@ -1,6 +1,6 @@
 # Looped NanoGPT Experiments
 
-Investigating whether a single transformer block, reused recurrently across N iterations with shared weights, can substitute for N independent unique blocks while retaining competitive language modeling performance. Sparked by reading [Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741) (Zhu et al., 2025), which proposes a more complex version of this idea with adaptive depth allocation. This experiment studies the simplest possible version with no adaptive mechanisms.
+Investigating whether a single transformer block, reused recurrently across N iterations with shared weights, can substitute for N independent unique blocks while retaining competitive language modeling performance. This was sparked by reading [Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741) (Zhu et al., 2025), which proposes a more complex version of this idea with adaptive depth allocation. This experiment studies the simplest possible version with no adaptive mechanisms.
 
 The question is not whether recurrent transformers are better. It is narrower: how much does parameter count actually matter when compute budget and depth are held constant.
 
@@ -21,7 +21,7 @@ logits = lm_head(x)
 
 A third variant, **Looped GPT with Deep Supervision**, computes a loss at every loop step and combines them with geometric weighting, forcing every iteration to produce a useful prediction.
 
-The architecture is intentionally minimal. No loop embeddings, no adaptive compute, no memory modules, no halting — just repeated application of the same block.
+The architecture is intentionally minimal. No loop embeddings, no adaptive compute, no memory modules, no halting, just repeated application of the same block.
 
 
 ## Experiments
@@ -59,7 +59,7 @@ Effective batch: 65,536 tokens/step (batch=16, grad_accum=8)
 
 **1. No fixed-point collapse at either scale.**
 
-The main failure mode for recurrent transformers is that the hidden state converges to a fixed point — later loops become identity functions. This did not happen.
+The main failure mode for recurrent transformers is that the hidden state converges to a fixed point and later loops become identity functions. This did not happen.
 
 ```
 FineWeb looped, final checkpoint:
@@ -156,7 +156,7 @@ KL(loop i -> loop i+1):
 [3.95, 0.45, 0.21, 0.24, 0.14, 0.20, 0.30, 0.25, 0.13, 0.07, 0.04]
 ```
 
-The first transition has KL = 3.95, meaning the initial raw embedding is radically different from the first refined state. After that, each loop makes progressively smaller updates — the final transition (loop 11 to 12) has KL = 0.04. The model has nearly converged within its trained depth.
+The first transition has KL = 3.95, meaning the initial raw embedding is radically different from the first refined state. After that, each loop makes progressively smaller updates, the final transition (loop 11 to 12) has KL = 0.04. The model has nearly converged within its trained depth.
 
 Adding more loops forces the block to keep running on a representation it was trained to stop refining at step 12. The output drifts rather than improving.
 
@@ -221,11 +221,6 @@ python analysis/loop_scaling.py \
     --loops 12 16 20 24 32
 ```
 
-
-## Hardware
-
-A100 80GB, single GPU.
-TinyStories: ~2h total. FineWeb: ~1h40min (standard), ~2h40min (looped).
 
 ## Based on
 
