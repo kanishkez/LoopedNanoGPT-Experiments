@@ -1,10 +1,8 @@
 # Looped NanoGPT Experiments
 
-Investigating whether a single transformer block, reused recurrently across N iterations with shared weights, can substitute for N independent unique blocks while retaining competitive language modeling performance.
+Investigating whether a single transformer block, reused recurrently across N iterations with shared weights, can substitute for N independent unique blocks while retaining competitive language modeling performance. Sparked by reading [Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741) (Zhu et al., 2025), which proposes a more complex version of this idea with adaptive depth allocation. This experiment studies the simplest possible version with no adaptive mechanisms.
 
-This is not a claim that recurrent transformers beat standard ones. The question being studied is narrower: how much does parameter count actually matter when compute budget (FLOPs, depth) is held constant?
-
----
+The question is not whether recurrent transformers are better. It is narrower: how much does parameter count actually matter when compute budget and depth are held constant.
 
 ## What was tested
 
@@ -25,7 +23,6 @@ A third variant, **Looped GPT with Deep Supervision**, computes a loss at every 
 
 The architecture is intentionally minimal. No loop embeddings, no adaptive compute, no memory modules, no halting — just repeated application of the same block.
 
----
 
 ## Experiments
 
@@ -57,7 +54,6 @@ Effective batch: 65,536 tokens/step (batch=16, grad_accum=8)
 
 12x fewer block parameters, 11.7 PPL gap. The gap was ~25 PPL at 65M tokens and narrowed to ~12 PPL by 524M tokens.
 
----
 
 ## Key findings
 
@@ -115,7 +111,6 @@ Loss drops 1.24 nats from loop 1 to loop 5. Loops 5 and 6 converge, suggesting s
 
 At 65M tokens: ~25 PPL gap. At 524M tokens: ~12 PPL gap. The looped model is a slow starter that benefits more from continued training than the standard model.
 
----
 
 ## Results
 
@@ -139,7 +134,6 @@ At 65M tokens: ~25 PPL gap. At 524M tokens: ~12 PPL gap. The looped model is a s
 
 ![Recurrence Diagnostics](results/fineweb/figures/5_diagnostics.png)
 
----
 
 ## Test-time loop scaling
 
@@ -172,7 +166,6 @@ This rules out test-time compute scaling (at least without any training signal e
 
 ![KL and Cosine Similarity per Loop](results/fineweb/figures/kl_cosine.png)
 
----
 
 ## Repo structure
 
@@ -205,7 +198,6 @@ results/
   fineweb/figures/        Plots for Experiment 2
 ```
 
----
 
 ## Running
 
@@ -229,30 +221,11 @@ python analysis/loop_scaling.py \
     --loops 12 16 20 24 32
 ```
 
----
 
 ## Hardware
 
 A100 80GB, single GPU.
 TinyStories: ~2h total. FineWeb: ~1h40min (standard), ~2h40min (looped).
-
----
-
-## Relation to Ouro / LoopLM (arXiv 2510.25741)
-
-The paper [Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741) (Zhu et al., 2025) proposes a closely related architecture called LoopLM, and trains models up to 2.6B parameters on 7.7T tokens.
-
-The base looped architecture — one shared transformer block applied N times — is the same in both. The similarities end there.
-
-Ouro's main contribution is an **entropy-regularized depth allocation objective** that lets each token dynamically decide how many loop iterations it needs during training. This makes the computation adaptive per token and per layer, and is what enables their strong reasoning benchmark results.
-
-This experiment does **not** implement that mechanism. The loop count is fixed at N for every token on every forward pass, with no learned stopping or depth weighting beyond the deep supervision variant. The experiment was explicitly designed to study the simplest possible version of the architecture — fixed depth, no adaptivity — to isolate whether the core weight-sharing idea alone provides parameter efficiency.
-
-The test-time scaling failure (extra loops degrade PPL) is directly explained by the absence of adaptive depth training. Ouro trains with variable loop counts, which is what allows it to generalise beyond a fixed depth. The negative result here is consistent with what you'd expect: without that signal, the model learns to converge in exactly N steps and is not robust to more.
-
-If you want to replicate Ouro specifically, the key addition is the entropy-regularized objective and training with a distribution over loop counts rather than a fixed one.
-
----
 
 ## Based on
 
