@@ -238,6 +238,22 @@ TinyStories: ~2h total. FineWeb: ~1h40min (standard), ~2h40min (looped).
 
 ---
 
+## Relation to Ouro / LoopLM (arXiv 2510.25741)
+
+The paper [Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741) (Zhu et al., 2025) proposes a closely related architecture called LoopLM, and trains models up to 2.6B parameters on 7.7T tokens.
+
+The base looped architecture — one shared transformer block applied N times — is the same in both. The similarities end there.
+
+Ouro's main contribution is an **entropy-regularized depth allocation objective** that lets each token dynamically decide how many loop iterations it needs during training. This makes the computation adaptive per token and per layer, and is what enables their strong reasoning benchmark results.
+
+This experiment does **not** implement that mechanism. The loop count is fixed at N for every token on every forward pass, with no learned stopping or depth weighting beyond the deep supervision variant. The experiment was explicitly designed to study the simplest possible version of the architecture — fixed depth, no adaptivity — to isolate whether the core weight-sharing idea alone provides parameter efficiency.
+
+The test-time scaling failure (extra loops degrade PPL) is directly explained by the absence of adaptive depth training. Ouro trains with variable loop counts, which is what allows it to generalise beyond a fixed depth. The negative result here is consistent with what you'd expect: without that signal, the model learns to converge in exactly N steps and is not robust to more.
+
+If you want to replicate Ouro specifically, the key addition is the entropy-regularized objective and training with a distribution over loop counts rather than a fixed one.
+
+---
+
 ## Based on
 
 [nanoGPT](https://github.com/karpathy/nanoGPT) by Andrej Karpathy. Training loop and data pipeline adapted from nanoGPT. Looped architecture, deep supervision variant, and all diagnostic code are original.
